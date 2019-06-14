@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# Run a command in an isolated nix environment
+#
+set -euo pipefail
+
+#if [ "$#" == "0" ]; then
+#  echo "Run a command in an isolated environment restricted to a predefined"
+#  echo "set of programs and packages."
+#  echo
+#  echo "Usage: iso <command>..."
+#  echo
+#  echo "Example: iso gcc hello.c"
+#  exit 1
+#fi
+
+if not nix --version > /dev/null; then
+    echo "Error: nix not installed, install with: curl https://nixos.org/nix/install | sh"
+    echo "       then enter nix environment with: source ~/.nix-profile/etc/profile.d/nix.sh"
+    exit 1
+fi
+
+echorun() {
+  echo $@
+  $@
+}
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if [ "$#" == "0" ]; then
+  echorun exec sudo nix-shell --pure --argstr channel nixos-unstable $script_dir/shell.nix
+else
+  echorun exec nix-shell --pure --argstr channel nixos-unstable $script_dir/shell.nix --run "$*"
+fi
