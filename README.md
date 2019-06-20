@@ -1,3 +1,9 @@
+# downloadlatest
+
+A tool to download the latest zig compiler.  Currently written in python3.
+
+On windows this will install the latest zig compiler to a directory in your `PATH`.  Note that this does not install `zig.exe` directly into the directory so this alone does not allow you to run `zig` from the command line.  In order to do that, an additional `zig.bat` file is generated directly inside the `PATH` directory that forwards calls to the newly installed version of zig.  Using this method allows you to have multiple versions of zig installed and running `zig` will just use the latest version.
+
 # Windows
 
 ### Prepare a new build
