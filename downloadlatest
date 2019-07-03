@@ -4,7 +4,6 @@ import sys
 import shutil
 import subprocess
 import json
-import urllib.request
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -39,12 +38,14 @@ def find_prog(name):
         results = run_output(["where", name]).splitlines()
         return None if len(results) == 0 else results[0]
     else:
-        sys.exit("not implemented")
+        result = run_output(["which", name]).strip()
+        return None if len(result) == 0 else result
 
 def curl_download(url, file):
     run(["curl", url, "--output", file])
 
 def python_download(url, file):
+    import urllib.request
     print("urllib downloading '{}'...".format(url))
     with urllib.request.urlopen(url) as request:
         with open(file, "wb") as filed:
@@ -101,81 +102,122 @@ def get_latest_zig_url(platform):
     download_json = fetch_download_json()
     return download_json["master"][platform]["tarball"]
 
-if os.name == "nt":
-    import zipfile
-
-    def determine_batch_file():
-        zig_batch_files = run_output(["where", "zig.bat"]).splitlines()
-        if len(zig_batch_files) == 1:
-            print("using '{}'".format(zig_batch_files[0]))
-            return zig_batch_files[0]
-        if len(zig_batch_files) > 1:
-            print("found multiple zig batch files in PATH")
-            print("--------------------------------------------------------------------------------")
-            file_index = 0
-            for file in zig_batch_files:
-                print("[{}] {}".format(file_index, file))
-                file_index += 1
-            selected_index = prompt_int("Please select a batch file to update", 0, len(zig_batch_files) - 1)
-            return zig_batch_files[selected_index]
-
-        print("no zig batch file in PATH, select one of the following directories to install it:")
-        print("--------------------------------------------------------------------------------")
-        paths = os.environ["PATH"].split(';')
-        path_index = 0
-        for path in paths:
-            print("[{}] '{}'".format(path_index, path))
-            path_index += 1
-        selected_index = prompt_int("Please select a path to install zig.bat", 0, len(paths) - 1)
-        install_dir = paths[selected_index]
-        print("will install zig.bat to '{}'".format(install_dir))
-        return os.path.join(install_dir, "zig.bat")
-
-    zig_batch_file = determine_batch_file()
-    zig_batch_dir = os.path.dirname(zig_batch_file)
-    url = get_latest_zig_url("x86_64-windows")
-
-    #
-    # Download and extract latest version of zig
-    #
-    archive_basename = os.path.basename(url)
-    installed_basename = archive_basename[:-4]
-    print("latest name is '{}'".format(installed_basename))
-    install_dir = os.path.join(zig_batch_dir, installed_basename)
-    if os.path.exists(install_dir):
-        print("Latest version of zig already downloaded to '{}'".format(install_dir))
+def find_zig_to_update():
+    if os.name == "nt":
+        basename = "zig.bat"
+        looking_for = "batch file"
+        candidates = run_output(["where", "zig.bat"]).splitlines()
     else:
-        archive_file = os.path.join(zig_batch_dir, archive_basename)
+        basename = "zig"
+        looking_for = "symlink"
+        zigs_in_path = run_output(["which", "-a", "zig"]).splitlines()
+        candidates = []
+        for zig in zigs_in_path:
+            if os.path.islink(zig):
+                candidates.append(zig)
+
+    if len(candidates) == 1:
+        print("using '{}'".format(candidates[0]))
+        return candidates[0]
+
+    if len(candidates) > 1:
+        print("found multiple zig candidates in PATH")
+        print("--------------------------------------------------------------------------------")
+        file_index = 0
+        for file in candidates:
+            print("[{}] {}".format(file_index, file))
+            file_index += 1
+        selected_index = prompt_int("Please select a zig file update", 0, len(candidates) - 1)
+        return candidates[selected_index]
+
+    print("no zig {} in PATH, select one of the following directories to install it:".format(looking_for))
+    print("--------------------------------------------------------------------------------")
+    paths = os.environ["PATH"].split(';')
+    path_index = 0
+    for path in paths:
+        print("[{}] '{}'".format(path_index, path))
+        path_index += 1
+    selected_index = prompt_int("Please select a path to install zig", 0, len(paths) - 1)
+    install_path = paths[selected_index]
+    print("will install zig to '{}'".format(install_path))
+    return os.path.join(install_path, basename)
+
+def tar_xz_extract(archive, to):
+    import tarfile
+    with tarfile.open(archive) as file:
+        file.extractall(to)
+
+def zip_extract(archive, to):
+    import zipfile
+    with zipfile.ZipFile(archive, 'r') as zip:
+        zip.extractall(to)
+
+extract_types = (
+    (".tar.xz", tar_xz_extract),
+    (".zip", zip_extract),
+)
+
+def download_and_extract_zig(url, zig_install_path):
+    extract_ext = None
+    for ext,func in extract_types:
+        if url.endswith(ext):
+            extract_ext = ext
+            extract_func = func
+            break
+    if not extract_ext:
+        sys.exit("Error: don't know how to extract '{}'".format(url))
+
+    archive_basename = os.path.basename(url)
+    installed_basename = archive_basename[:-len(extract_ext)]
+    print("latest name is '{}'".format(installed_basename))
+    versioned_install_path = os.path.join(zig_install_path, installed_basename)
+    if os.path.exists(versioned_install_path):
+        print("Latest version of zig already downloaded to '{}'".format(versioned_install_path))
+    else:
+        archive_file = os.path.join(zig_install_path, archive_basename)
         download_if_needed(url, archive_file)
 
-        install_dir_tmp = install_dir + ".extracting"
-        if os.path.exists(install_dir_tmp):
-            shutil.rmtree(install_dir_tmp)
+        versioned_install_path_tmp = versioned_install_path + ".extracting"
+        if os.path.exists(versioned_install_path_tmp):
+            shutil.rmtree(versioned_install_path_tmp)
         print("extracting '{}'...".format(archive_file))
-        with zipfile.ZipFile(archive_file, 'r') as zip:
-            zip.extractall(install_dir_tmp)
-        os.rename(os.path.join(install_dir_tmp, installed_basename), install_dir)
-        shutil.rmtree(install_dir_tmp)
+        extract_func(archive_file, versioned_install_path_tmp)
+        os.rename(os.path.join(versioned_install_path_tmp, installed_basename), versioned_install_path)
+        shutil.rmtree(versioned_install_path_tmp)
         os.remove(archive_file)
+    return versioned_install_path
 
+
+zig_file_in_path = find_zig_to_update()
+zig_install_path = os.path.dirname(zig_file_in_path)
+
+if os.name == "nt":
+    variant = "x86_64-windows"
+else:
+    variant = "x86_64-linux"
+
+url = get_latest_zig_url(variant)
+versioned_install_path = download_and_extract_zig(url, zig_install_path)
+
+if os.name == "nt":
     #
     # Update batch file to point to new version of zig
     #
-    zig_exe = os.path.join(install_dir, "zig.exe")
+    zig_exe = os.path.join(versioned_install_path, "zig.exe")
     if not os.path.exists(zig_exe):
         sys.exit("Error: zig exe '{}' does not exist even after installing zig?".format(zig_exe))
     batch_file_contents = "@{} %*".format(zig_exe)
 
     update_batch_file = False
-    if not os.path.exists(zig_batch_file):
-        print("Creating batch file '{}' with these contents:".format(zig_batch_file))
+    if not os.path.exists(zig_file_in_path):
+        print("Creating batch file '{}' with these contents:".format(zig_file_in_path))
         print(batch_file_contents)
         update_batch_file = True
     else:
-        with open(zig_batch_file, "r") as file:
+        with open(zig_file_in_path, "r") as file:
             current_contents = file.read()
         if current_contents == batch_file_contents:
-            print("Batch file '{}' already correct:".format(zig_batch_file))
+            print("Batch file '{}' already correct:".format(zig_file_in_path))
             print(batch_file_contents)
         else:
             print("-------------------------------------------------")
@@ -188,6 +230,26 @@ if os.name == "nt":
             update_batch_file = True
 
     if update_batch_file:
-        with open(zig_batch_file, "w") as file:
+        with open(zig_file_in_path, "w") as file:
             file.write(batch_file_contents)
 
+else: # os.name != "nt" (linux)
+
+    link_target = os.path.join(os.path.basename(versioned_install_path), "zig")
+    create_symlink = True
+    if os.path.exists(zig_file_in_path):
+        if os.path.islink(zig_file_in_path):
+            existing_link_target = os.readlink(zig_file_in_path)
+            if existing_link_target == link_target:
+                print("symlink '{}' is already pointing to '{}'".format(zig_file_in_path, link_target))
+                create_symlink = False
+            else:
+                print("symlink '{}' is out-of-date, removing it...".format(zig_file_in_path))
+                os.remove(zig_file_in_path)
+        else:
+            print("rm '{}'".format(zig_file_in_path))
+            os.remove(zig_file_in_path)
+
+    if create_symlink:
+        print("ln -s '{}' '{}'".format(link_target, zig_file_in_path))
+        os.symlink(link_target, zig_file_in_path)

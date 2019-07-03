@@ -1,8 +1,32 @@
 # downloadlatest
 
-A tool to download the latest zig compiler.  Currently written in python3.
+A convenient tool to quickly download the latest zig compiler.  Currently written in python3.  Run `./downloadlatest` on linux and `python3 downloadlatest` on windows.
 
-On windows this will install the latest zig compiler to a directory in your `PATH`.  Note that this does not install `zig.exe` directly into the directory so this alone does not allow you to run `zig` from the command line.  In order to do that, an additional `zig.bat` file is generated directly inside the `PATH` directory that forwards calls to the newly installed version of zig.  Using this method allows you to have multiple versions of zig installed and running `zig` will just use the latest version.
+This tool installs zig into a versioned sub-directory in your `PATH` and adds a script/symlink file directly in the `PATH` directory so that `zig` can be executed from anywhere.  The `downloadlatest` script will find this directory from previous installations or will prompt to select one if not found.  On linux, installing zig to `~/bin` would result in these files:
+
+Linux:
+```
+# the extracted zig tarball
+~/bin/zig-linux-x86_64-0.4.0+9daf0140/
+
+# a symlink to be able to invoke zig from anywhere
+~/bin/zig -> zig-linux-x86_64-0.4.0+9daf0140/zig
+```
+
+And on windows if installed to `C:\`, then it would install these files:
+
+Windows:
+```
+# the extracted zig zip archive
+C:\zig-windows-x86_64-0.4.0+9daf0140
+
+# a batch file that forwards calls to zig-windows-x86_64-0.4.0+9daf0140 to be able to invoke zig from anywhere
+C:\zig.bat
+```
+
+The script downloads a json file from https://ziglang.org/download/index.json to find the latest version.  The script will perform this fetch every time it is executed, but will only download/extract the latest version if it has not already done so.
+
+Currently the script leaves the previous version of zig around.  A future addition may be for the script to remove that when it installs a newer version.
 
 # Windows
 
