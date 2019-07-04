@@ -7,6 +7,7 @@ import sys
 import shutil
 import subprocess
 import json
+import re
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -147,16 +148,17 @@ def get_latest_zig_url(platform):
 def find_zig_to_update():
     if os.name == "nt":
         basename = "zig.bat"
-        looking_for = "batch file"
         candidates = run_output(["where", "zig.bat"]).splitlines()
+        # TODO: should we check the bash contents?
     else:
         basename = "zig"
-        looking_for = "symlink"
         zigs_in_path = run_output(["which", "-a", "zig"]).splitlines()
         candidates = []
         for zig in zigs_in_path:
             if os.path.islink(zig):
-                candidates.append(zig)
+                link_target = os.readlink(zig)
+                if re.match("zig[^/]+/zig", link_target):
+                    candidates.append(zig)
 
     if len(candidates) == 1:
         print("using '{}'".format(candidates[0]))
@@ -172,9 +174,9 @@ def find_zig_to_update():
         selected_index = prompt_int("Please select a zig file update", 0, len(candidates) - 1)
         return candidates[selected_index]
 
-    print("no zig {} in PATH, select one of the following directories to install it:".format(looking_for))
+    print("unable to find previous installation in PATH, select one of the following directories to install to:")
     print("--------------------------------------------------------------------------------")
-    paths = os.environ["PATH"].split(';')
+    paths = os.environ["PATH"].split(os.pathsep)
     path_index = 0
     for path in paths:
         print("[{}] '{}'".format(path_index, path))
