@@ -1,8 +1,8 @@
-# downloadlatest
+# zig-update
 
-A convenient tool to quickly download the latest zig compiler.  Currently written in python3.  Run `./downloadlatest` on linux and `python3 downloadlatest` on windows.
+A convenient tool to quickly download the latest zig compiler.  Currently written in python3.  Run `./zig-update` on linux and `python3 zig-update` on windows.
 
-This tool installs zig into a versioned sub-directory in your `PATH` and adds a script/symlink file directly in the `PATH` directory so that `zig` can be executed from anywhere.  The `downloadlatest` script will find this directory from previous installations or will prompt to select one if not found.  On linux, installing zig to `~/bin` would result in these files:
+This tool installs zig into a versioned sub-directory in your `PATH` and adds a script/symlink file directly in the `PATH` directory so that `zig` can be executed from anywhere.  The `zig-update` script will find this directory from previous installations or will prompt to select one if not found.  On linux, installing zig to `~/bin` would result in these files:
 
 Linux:
 ```
