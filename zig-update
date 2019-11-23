@@ -28,6 +28,10 @@ def logrmtree(path):
     print("rm -rf '{}'".format(path))
     shutil.rmtree(path)
 
+def mkdir(dir):
+    if not os.path.exists(dir):
+        os.mkdir(dir)
+
 def prompt_int(msg, min, max):
     while True:
         sys.stdout.write("{} [{}-{}] ? ".format(msg, min, max))
@@ -192,6 +196,11 @@ def find_zig_to_update():
     return os.path.join(install_path, basename)
 
 def tar_xz_extract(archive, to):
+    # use tar first if it exists, seems to work more often than python's tarfile module
+    if find_prog("tar"):
+        mkdir(to)
+        run(["tar", "-C", to, "-xf", archive])
+	return
     import tarfile
     with tarfile.open(archive) as file:
         file.extractall(to)
@@ -252,6 +261,8 @@ zig_install_path = os.path.dirname(zig_file_in_path)
 
 if os.name == "nt":
     variant = "x86_64-windows"
+elif sys.platform == "darwin":
+    variant = "x86_64-macos"
 else:
     variant = "x86_64-linux"
 
