@@ -200,7 +200,7 @@ def tar_xz_extract(archive, to):
     if find_prog("tar"):
         mkdir(to)
         run(["tar", "-C", to, "-xf", archive])
-	return
+        return
     import tarfile
     with tarfile.open(archive) as file:
         file.extractall(to)
