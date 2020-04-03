@@ -1,8 +1,10 @@
 # zig-update
 
-A convenient tool to quickly download the latest zig compiler.  Currently written in python3.  Run `./zig-update` on linux and `python3 zig-update` on windows.
+A convenient tool to quickly download the latest zig compiler.  Currently written in python3.  Run `./zig-update` on linux and `python3 zig-update` on windows.  Use the `--clean` option to cleanup older compilers (note: `--clean` will only clean older compilers if it successfully installed the latest one).
 
-This tool installs zig into a versioned sub-directory in your `PATH` and adds a script/symlink file directly in the `PATH` directory so that `zig` can be executed from anywhere.  The `zig-update` script will find this directory from previous installations or will prompt to select one if not found.  On linux, installing zig to `~/bin` would result in these files:
+### zig-update details
+
+`zig-update` installs zig into a versioned sub-directory in your `PATH` and adds a script/symlink file directly in the `PATH` directory so that `zig` can be executed from anywhere.  The `zig-update` script will find this directory from previous installations or will prompt to select one if not found.  On linux, installing zig to `~/bin` would result in these files:
 
 Linux:
 ```
@@ -25,8 +27,6 @@ C:\zig.bat
 ```
 
 The script downloads a json file from https://ziglang.org/download/index.json to find the latest version.  The script will perform this fetch every time it is executed, but will only download/extract the latest version if it has not already done so.
-
-Currently the script leaves the previous version of zig around.  A future addition may be for the script to remove that when it installs a newer version.
 
 # Windows
 
