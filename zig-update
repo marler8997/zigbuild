@@ -260,6 +260,8 @@ def main():
 
     zig_file_in_path = find_zig_to_update()
     zig_install_path = os.path.dirname(zig_file_in_path)
+    if not os.path.exists(zig_install_path):
+        sys.exit("Error: zig install path '{}' does not exist".format(zig_install_path))
 
     if os.name == "nt":
         variant = "x86_64-windows"
