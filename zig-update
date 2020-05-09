@@ -245,103 +245,107 @@ def download_and_extract_zig(url, zig_install_path):
         os.remove(archive_file)
     return versioned_install_path
 
-args = sys.argv[1:]
-do_clean = False
-for i in range(0, len(args)):
-    arg = args[i]
-    if arg == "-h" or arg == "--help":
-        sys.exit("Usage: zig-build [--clean]")
-    elif arg == "--clean":
-        do_clean = True
-    else:
-        sys.exit("Error: unknown command-line argument '{}'".format(arg))
 
-zig_file_in_path = find_zig_to_update()
-zig_install_path = os.path.dirname(zig_file_in_path)
-
-if os.name == "nt":
-    variant = "x86_64-windows"
-elif sys.platform == "darwin":
-    variant = "x86_64-macos"
-else:
-    variant = "x86_64-linux"
-
-url = get_latest_zig_url(variant)
-versioned_install_path = download_and_extract_zig(url, zig_install_path)
-
-if os.name == "nt":
-    #
-    # Update batch file to point to new version of zig
-    #
-    zig_exe = os.path.join(versioned_install_path, "zig.exe")
-    if not os.path.exists(zig_exe):
-        sys.exit("Error: zig exe '{}' does not exist even after installing zig?".format(zig_exe))
-    batch_file_contents = "@{} %*".format(zig_exe)
-
-    update_batch_file = False
-    if not os.path.exists(zig_file_in_path):
-        print("Creating batch file '{}' with these contents:".format(zig_file_in_path))
-        print(batch_file_contents)
-        update_batch_file = True
-    else:
-        with open(zig_file_in_path, "r") as file:
-            current_contents = file.read()
-        if current_contents == batch_file_contents:
-            print("Batch file '{}' already correct:".format(zig_file_in_path))
-            print(batch_file_contents)
+def main():
+    args = sys.argv[1:]
+    do_clean = False
+    for i in range(0, len(args)):
+        arg = args[i]
+        if arg == "-h" or arg == "--help":
+            sys.exit("Usage: zig-build [--clean]")
+        elif arg == "--clean":
+            do_clean = True
         else:
-            print("-------------------------------------------------")
-            print("TODO: prompt to remove old version of zig?")
-            print("-------------------------------------------------")
-            print("Updating batch file contents.  Current Content:")
-            print(current_contents)
-            print("New Content:")
+            sys.exit("Error: unknown command-line argument '{}'".format(arg))
+
+    zig_file_in_path = find_zig_to_update()
+    zig_install_path = os.path.dirname(zig_file_in_path)
+
+    if os.name == "nt":
+        variant = "x86_64-windows"
+    elif sys.platform == "darwin":
+        variant = "x86_64-macos"
+    else:
+        variant = "x86_64-linux"
+
+    url = get_latest_zig_url(variant)
+    versioned_install_path = download_and_extract_zig(url, zig_install_path)
+
+    if os.name == "nt":
+        #
+        # Update batch file to point to new version of zig
+        #
+        zig_exe = os.path.join(versioned_install_path, "zig.exe")
+        if not os.path.exists(zig_exe):
+            sys.exit("Error: zig exe '{}' does not exist even after installing zig?".format(zig_exe))
+        batch_file_contents = "@{} %*".format(zig_exe)
+
+        update_batch_file = False
+        if not os.path.exists(zig_file_in_path):
+            print("Creating batch file '{}' with these contents:".format(zig_file_in_path))
             print(batch_file_contents)
             update_batch_file = True
-
-    if update_batch_file:
-        with open(zig_file_in_path, "w") as file:
-            file.write(batch_file_contents)
-
-else: # os.name != "nt" (linux)
-
-    link_target = os.path.join(os.path.basename(versioned_install_path), "zig")
-    create_symlink = True
-    if os.path.exists(zig_file_in_path):
-        if os.path.islink(zig_file_in_path):
-            existing_link_target = os.readlink(zig_file_in_path)
-            if existing_link_target == link_target:
-                print("symlink '{}' is already pointing to '{}'".format(zig_file_in_path, link_target))
-                create_symlink = False
+        else:
+            with open(zig_file_in_path, "r") as file:
+                current_contents = file.read()
+            if current_contents == batch_file_contents:
+                print("Batch file '{}' already correct:".format(zig_file_in_path))
+                print(batch_file_contents)
             else:
-                print("symlink '{}' is out-of-date, removing it...".format(zig_file_in_path))
+                print("-------------------------------------------------")
+                print("TODO: prompt to remove old version of zig?")
+                print("-------------------------------------------------")
+                print("Updating batch file contents.  Current Content:")
+                print(current_contents)
+                print("New Content:")
+                print(batch_file_contents)
+                update_batch_file = True
+
+        if update_batch_file:
+            with open(zig_file_in_path, "w") as file:
+                file.write(batch_file_contents)
+
+    else: # os.name != "nt" (linux)
+
+        link_target = os.path.join(os.path.basename(versioned_install_path), "zig")
+        create_symlink = True
+        if os.path.exists(zig_file_in_path):
+            if os.path.islink(zig_file_in_path):
+                existing_link_target = os.readlink(zig_file_in_path)
+                if existing_link_target == link_target:
+                    print("symlink '{}' is already pointing to '{}'".format(zig_file_in_path, link_target))
+                    create_symlink = False
+                else:
+                    print("symlink '{}' is out-of-date, removing it...".format(zig_file_in_path))
+                    os.remove(zig_file_in_path)
+            else:
+                print("rm '{}'".format(zig_file_in_path))
                 os.remove(zig_file_in_path)
+
+        if create_symlink:
+            print("ln -s '{}' '{}'".format(link_target, zig_file_in_path))
+            os.symlink(link_target, zig_file_in_path)
+
+    if do_clean:
+        clean_list = []
+        found_latest = False
+        for item in glob.glob(os.path.join(zig_install_path, "zig-*")):
+            if (item == versioned_install_path):
+                found_latest = True
+            else:
+                clean_list.append(item)
+
+        if not found_latest:
+            print("Error: aborting clean because latest compiler '{}' was not found in the install directory:".format(versioned_install_path))
+            for d in clean_list:
+                print("  {}".format(d))
+            sys.exit(1)
+
+        if len(clean_list) == 0:
+            print("There are no old compilers to clean")
         else:
-            print("rm '{}'".format(zig_file_in_path))
-            os.remove(zig_file_in_path)
+            print("Removing {} old compilers...".format(len(clean_list)))
+            for d in clean_list:
+                logrmtree(d)
 
-    if create_symlink:
-        print("ln -s '{}' '{}'".format(link_target, zig_file_in_path))
-        os.symlink(link_target, zig_file_in_path)
-
-if do_clean:
-    clean_list = []
-    found_latest = False
-    for item in glob.glob(os.path.join(zig_install_path, "zig-*")):
-        if (item == versioned_install_path):
-            found_latest = True
-        else:
-            clean_list.append(item)
-
-    if not found_latest:
-        print("Error: aborting clean because latest compiler '{}' was not found in the install directory:".format(versioned_install_path))
-        for d in clean_list:
-            print("  {}".format(d))
-        sys.exit(1)
-
-    if len(clean_list) == 0:
-        print("There are no old compilers to clean")
-    else:
-        print("Removing {} old compilers...".format(len(clean_list)))
-        for d in clean_list:
-            logrmtree(d)
+main()
