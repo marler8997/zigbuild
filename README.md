@@ -53,6 +53,13 @@ msbuild -p:Configuration=Release -m:<cpu_count> INSTALL.vcxproj
 bin\zig build --build-file ..\build.zig test
 ```
 
+# Building LLVM/Clang/LLD with Nix
+
+* Start a pure nix-shell
+```
+nix-shell --pure -p cmake python perl zlib
+```
+
 # Using Nix
 
 * Zig stays pretty up-to-date with llvm, so you may need to add the nix unstable channel
@@ -83,10 +90,6 @@ nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs-unstable
 nix-channel --update
 ```
 
-* Setup an isolated environment
-```
-
-```
 
 * Install llvm_8 and clang_8
 
